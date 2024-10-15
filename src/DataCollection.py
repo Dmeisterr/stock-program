@@ -74,7 +74,7 @@ for symbol in sp500_symbols_unique:
 		logging.error(f"Failed to fetch {api_function4} (200-day) data for {symbol}")
 	
 	# sleep for 3 seconds to avoid hitting the API rate limit
-	time.sleep(3)
+	time.sleep(4)
 
 # Loop through the following functions for the API
 functions = ["UNEMPLOYMENT", "GDP", "CPI", "TREASURY_YIELD", "REAL_GDP", "FEDERAL_FUNDS_RATE", "INFLATION"]
