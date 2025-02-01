@@ -1,0 +1,134 @@
+---
+title: ""
+format: html
+---
+
+
+```{python}
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt
+import concurrent.futures
+import statsmodels.api as sm
+
+# Load data
+file_path = "stocks_calc_final.csv"
+df = pd.read_csv(file_path)
+
+# Sample the data (e.g., 10% of the data)
+df_sampled = df.sample(frac=0.1, random_state=42)
+
+# Feature engineering and data preparation function
+def prepare_features(df):
+    df['MA_10'] = df['Adjusted Close'].rolling(window=10).mean()
+    df['Volatility'] = df['Adjusted Close'].rolling(window=10).std()
+    df['Price_Change'] = (df['Adjusted Close'].shift(-1) - df['Adjusted Close']) / df['Adjusted Close']
+    return df.dropna()
+
+# Use multithreading for data preparation
+with concurrent.futures.ThreadPoolExecutor() as executor:
+    future = executor.submit(prepare_features, df_sampled)
+    df = future.result()
+
+# Feature selection
+X = df[['Open', 'High', 'Low', 'Close', 'Volume', 'MA_10', 'Volatility', 'P/E Ratio', 'Dividend Amount', 'Earnings']]
+y = df['Price_Change']
+
+# Split the data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Scaling in parallel
+def scale_data(X_train, X_test):
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+    return X_train_scaled, X_test_scaled
+
+with concurrent.futures.ThreadPoolExecutor() as executor:
+    future = executor.submit(scale_data, X_train, X_test)
+    X_train_scaled, X_test_scaled = future.result()
+
+# Add a constant to the model (intercept)
+X_train_scaled = sm.add_constant(X_train_scaled)
+X_test_scaled = sm.add_constant(X_test_scaled)
+
+# Fit the model using statsmodels
+model = sm.OLS(y_train, X_train_scaled).fit()
+
+# Print the summary
+print(model.summary())
+
+# Model evaluation (non-parallel)
+y_pred = model.predict(X_test_scaled)
+
+plt.scatter(y_test, y_pred)
+plt.xlabel("Actual Price Change")
+plt.ylabel("Predicted Price Change")
+plt.title("Actual vs Predicted")
+plt.show()
+
+```
+
+```{r}
+# Load necessary libraries
+library(dplyr)
+library(caret)
+library(ggplot2)
+library(zoo)  # Ensure zoo is loaded for rolling functions
+
+# Load data
+file_path <- "/Users/daniellott2/Documents/stock-program/stocks_calc_final.csv"
+df <- read.csv(file_path)
+
+# Sample the data (e.g., 10% of the data)
+set.seed(42)
+df_sampled <- df %>% sample_frac(0.1)
+
+# Feature engineering and data preparation function
+prepare_features <- function(df) {
+  df <- df %>%
+    mutate(
+      MA_10 = zoo::rollmean(Adjusted.Close, 10, fill = NA, align = "right"),
+      Volatility = zoo::rollapply(Adjusted.Close, 10, sd, fill = NA, align = "right"),
+      Price_Change = (dplyr::lead(Adjusted.Close) - Adjusted.Close) / Adjusted.Close
+    ) %>%
+    na.omit()
+  return(df)
+}
+
+# Prepare features
+df <- prepare_features(df_sampled)
+
+# Feature selection
+X <- df %>% select(Open, High, Low, Close, Volume, MA_10, Volatility, P.E.Ratio, Dividend.Amount, Earnings)
+y <- df$Price_Change
+
+# Split the data
+set.seed(42)
+trainIndex <- createDataPartition(y, p = .8, list = FALSE, times = 1)
+X_train <- X[trainIndex, ]
+X_test <- X[-trainIndex, ]
+y_train <- y[trainIndex]
+y_test <- y[-trainIndex]
+
+# Scaling the data
+preProc <- preProcess(X_train, method = c("center", "scale"))
+X_train_scaled <- predict(preProc, X_train)
+X_test_scaled <- predict(preProc, X_test)
+
+# Fit the model using linear regression
+model <- lm(y_train ~ ., data = X_train_scaled)
+
+# Print the summary
+summary(model)
+
+# Model evaluation
+y_pred <- predict(model, X_test_scaled)
+
+# Plot the results
+ggplot(data = data.frame(y_test, y_pred), aes(x = y_test, y = y_pred)) +
+  geom_point() +
+  labs(x = "Actual Price Change", y = "Predicted Price Change", title = "Actual vs Predicted") +
+  theme_minimal()
+```

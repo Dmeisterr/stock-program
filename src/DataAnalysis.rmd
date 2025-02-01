@@ -1,0 +1,33 @@
+```{r}
+library(dplyr)
+
+df_1 <- read.csv("stocks_with_1yr_price_change.csv")
+df_5 <- read.csv("stocks_with_5yr_price_change.csv")
+df_10 <- read.csv("stocks_with_10yr_price_change.csv")
+
+
+# Take a 10% sample
+# set.seed(42)
+df_sample_1 <- df_1 %>%
+  group_by(Symbol) %>%
+  sample_n(1)
+df_sample_5 <- df_5 %>%
+  group_by(Symbol) %>%
+  sample_n(1)
+df_sample_10 <- df_10 %>%
+  group_by(Symbol) %>%
+  sample_n(1)
+
+
+
+# Fit the model
+# model <- lm(Price_Change_10Y ~ Adjusted.Close + Volume + P.E..ttm. + MA_50.Adj_Close + MA_200.Adj_Close, data = df_sample)
+model_1 <- lm(Price_Change_1Y ~ Adjusted.Close + Volume + P.E..ttm. + MA_50.Adj_Close + MA_200.Adj_Close, data = df_sample_1)
+model_5 <- lm(Price_Change_5Y ~ Adjusted.Close + Volume + P.E..ttm. + MA_50.Adj_Close + MA_200.Adj_Close, data = df_sample_5)
+model_10 <- lm(Price_Change_10Y ~ Adjusted.Close + Volume + P.E..ttm. + MA_50.Adj_Close + MA_200.Adj_Close, data = df_sample_10)
+
+# Print results
+summary(model_1)
+summary(model_5)
+summary(model_10)
+```
